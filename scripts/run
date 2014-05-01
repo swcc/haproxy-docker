@@ -1,0 +1,35 @@
+#!/bin/bash
+set -e
+
+VIP=$1
+PASS=$2
+DEV=eth1
+
+if [ -z "$PASS" ]
+then
+  echo "$0 virtual-ip password"
+  exit 1
+fi
+
+# Check is haproxy.cfg is valid before we start ucarp
+haproxy -c -f /haproxy/haproxy.cfg
+
+echo "Waiting for external interface"
+pipework --wait -i $DEV
+
+[ -z "$VHID" ] && VHID=`IFS=.;set -- $VIP; echo $(( ($1+$2+$3+$4) % 255 ))`
+echo "Using id: $VHID"
+
+NET=`ip addr show dev $DEV|awk '/inet[^6]/ {print $2}'`
+RIP=`echo $NET|cut -d/ -f1`
+
+ucarp -i $DEV -s $RIP -v $VHID -p $PASS -a $VIP \
+      -u ./scripts/up -d ./scripts/down -z &
+
+PID=$!
+
+haproxy -f /haproxy/haproxy.cfg
+
+kill $PID
+sleep 5
+kill -9 $PID

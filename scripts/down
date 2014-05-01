@@ -1,0 +1,11 @@
+#!/bin/sh
+DEV=$1
+IP=$2
+
+if [ -z "$IP" ]
+then
+  echo "$0 interface ip"
+fi
+
+ip addr del $IP/32 dev $DEV
+ip link set $DEV up
