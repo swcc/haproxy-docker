@@ -3,6 +3,9 @@ set -e
 
 VIP=$1
 PASS=$2
+GW=$3
+NET=$4
+
 DEV=eth1
 
 if [ -z "$PASS" ]
@@ -16,6 +19,20 @@ haproxy -c -f /haproxy/haproxy.cfg
 
 echo "Waiting for external interface"
 pipework --wait -i $DEV
+
+if [ -n "$GW" ]
+then
+  OLDGW=`ip route |awk '/^default/ {print $3}'`
+  echo "Moving default route $OLDGW->$GW"
+  ip route del default
+  ip route add default via $GW
+
+  if [ -n "$NET" ]
+  then
+    echo "Add route $NET to old gateway $OLDGW"
+    ip route add $NET via $OLDGW
+  fi
+fi
 
 [ -z "$VHID" ] && VHID=`IFS=.;set -- $VIP; echo $(( ($1+$2+$3+$4) % 255 ))`
 echo "Using id: $VHID"
