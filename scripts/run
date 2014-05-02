@@ -34,7 +34,7 @@ then
   fi
 fi
 
-[ -z "$VHID" ] && VHID=`IFS=.;set -- $VIP; echo $(( ($1+$2+$3+$4) % 255 ))`
+[ -z "$VHID" ] && VHID=`printf '%d' 0x$(echo $VIP | md5sum |cut -b1-2)`
 echo "Using id: $VHID"
 
 NET=`ip addr show dev $DEV|awk '/inet[^6]/ {print $2}'`
