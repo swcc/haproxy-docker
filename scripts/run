@@ -1,10 +1,15 @@
 #!/bin/bash
 set -e
+trap "shutdown" SIGINT SIGTERM
 
 shutdown() {
-  kill $1
-  sleep 5
-  kill -9 $1
+  [ -z "$PID" ] && exit 0
+  kill -USR2 $PID # demote
+  sleep 1
+  kill $PID       # kill gracefully so it can unbound IP
+  sleep 1
+  kill -9 $PID
+  exit 0
 }
 
 export VIP=$1
@@ -39,5 +44,5 @@ pipework --wait -i $DEV
 /haproxy/scripts/ucarp &
 PID=$!
 
-/usr/sbin/nginx   -c /haproxy/nginx.conf  || shutdown $PID &
-/usr/sbin/haproxy -f /haproxy/haproxy.cfg || shutdown $PID
+/usr/sbin/nginx   -c /haproxy/nginx.conf  || shutdown &
+/usr/sbin/haproxy -f /haproxy/haproxy.cfg || shutdown
