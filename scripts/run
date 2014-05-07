@@ -1,12 +1,17 @@
 #!/bin/bash
 set -e
 
-VIP=$1
-PASS=$2
-GW=$3
-NET=$4
+shutdown() {
+  kill $1
+  sleep 5
+  kill -9 $1
+}
 
-DEV=eth1
+export VIP=$1
+export PASS=$2
+export GW=$3
+export NET=$4
+export DEV=eth1
 
 if [ -z "$PASS" ]
 then
@@ -14,39 +19,25 @@ then
   exit 1
 fi
 
+# Generate keys if not provided
+[ -f dhparam.pem ] ||
+      openssl dhparam -out dhparam.pem 2048
+[ -f server-key.pem ] ||
+      openssl genrsa -out server-key.pem 2048
+[ -f server-csr.pem ] ||
+      openssl req -new -key server-key.pem -out server-csr.pem -subj /CN=*/
+[ -f server-cert.pem ] ||
+      openssl x509 -req -in server-csr.pem -out server-cert.pem -signkey server-key.pem -days 3650
+
 # Check is haproxy.cfg is valid before we start ucarp
 haproxy -c -f /haproxy/haproxy.cfg
+nginx -t -c /haproxy/nginx.conf
 
 echo "Waiting for external interface"
 pipework --wait -i $DEV
 
-if [ -n "$GW" ]
-then
-  OLDGW=`ip route |awk '/^default/ {print $3}'`
-  echo "Moving default route $OLDGW->$GW"
-  ip route del default
-  ip route add default via $GW
-
-  if [ -n "$NET" ]
-  then
-    echo "Add route $NET to old gateway $OLDGW"
-    ip route add $NET via $OLDGW
-  fi
-fi
-
-[ -z "$VHID" ] && VHID=`printf '%d' 0x$(echo $VIP | md5sum |cut -b1-2)`
-echo "Using id: $VHID"
-
-NET=`ip addr show dev $DEV|awk '/inet[^6]/ {print $2}'`
-RIP=`echo $NET|cut -d/ -f1`
-
-ucarp -i $DEV -s $RIP -v $VHID -p $PASS -a $VIP \
-      -u ./scripts/up -d ./scripts/down -z &
-
+/haproxy/scripts/ucarp &
 PID=$!
 
-haproxy -f /haproxy/haproxy.cfg
-
-kill $PID
-sleep 5
-kill -9 $PID
+/usr/sbin/nginx   -c /haproxy/nginx.conf  || shutdown $PID &
+/usr/sbin/haproxy -f /haproxy/haproxy.cfg || shutdown $PID
