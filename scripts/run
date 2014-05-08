@@ -1,15 +1,27 @@
 #!/bin/bash
 set -e
+PIDFILE=/tmp/ucarp.pid
 trap "shutdown" SIGINT SIGTERM
 
 shutdown() {
-  [ -z "$PID" ] && exit 0
-  kill -USR2 $PID # demote
+  RET=$1
+  echo "Shutting down"
+  PID=`cat $PIDFILE`
+  if [ -z "$PID" ]
+  then
+    echo "ucarp pid not found"
+    exit 99
+  fi
+
+  echo "Demoting master"
+  kill -USR2 $PID
   sleep 1
-  kill $PID       # kill gracefully so it can unbound IP
+  echo "Sending TERM to ucarp"
+  kill $PID
   sleep 1
-  kill -9 $PID
-  exit 0
+  echo "Sending KILL to ucarp" # we need to make sure everything is dead before
+  kill -9 $PID                 # ucarp might promote itself to master afer 3s again
+  exit $RET
 }
 
 export VIP=$1
@@ -41,8 +53,9 @@ nginx -t -c /haproxy/nginx.conf
 echo "Waiting for external interface"
 pipework --wait -i $DEV
 
-/haproxy/scripts/ucarp &
-PID=$!
+( /usr/sbin/nginx   -c /haproxy/nginx.conf;  shutdown 1 ) &
+( /usr/sbin/haproxy -f /haproxy/haproxy.cfg; shutdown 2 ) &
 
-/usr/sbin/nginx   -c /haproxy/nginx.conf  || shutdown &
-/usr/sbin/haproxy -f /haproxy/haproxy.cfg || shutdown
+/haproxy/scripts/ucarp &
+echo $! > $PIDFILE
+wait $!
