@@ -28,7 +28,7 @@ export VIP=$1
 export PASS=$2
 export GW=$3
 export NET=$4
-export DEV=eth1
+export DEV=${DEV-eth1}
 
 if [ -z "$PASS" ]
 then
@@ -49,9 +49,6 @@ fi
 # Check is haproxy.cfg is valid before we start ucarp
 haproxy -c -f /haproxy/haproxy.cfg
 nginx -t -c /haproxy/nginx.conf
-
-echo "Waiting for external interface"
-pipework --wait -i $DEV
 
 ( /usr/sbin/nginx   -c /haproxy/nginx.conf;  shutdown 1 ) &
 ( /usr/sbin/haproxy -f /haproxy/haproxy.cfg; shutdown 2 ) &

@@ -1,5 +1,10 @@
 # haproxy + ucarp
-This container runs a haproxy with ucarp to make it high available.
+This image runs a haproxy + nginx for SSL termination with ucarp to make
+it highly available.
+
+This image uses host networking, which requires Docker >= 0.11. For a
+pipework based version working with older Docker versions, see the
+`legacy-pipework` branch.
 
 ## Configuration
 To configure haproxy, you can either bind-mount a haproxy.cfg from your
@@ -10,21 +15,19 @@ image by using a Dockerfile like this:
     ADD  haproxy.cfg /haproxy/haproxy.cfg
 
 ## Setup
-On `host A` start the container:
+Start a container like this on two hosts:
 
-    $ docker run --privileged fish/haproxy-docker 10.0.1.201 foobar23
+    $ docker run -e DEV=eth1 --privileged --net host fish/haproxy-docker 10.0.1.201 foobar23
 
-And move a sub interface to the container with [pipework](https://github.com/jpetazzo/pipework):
-
-    $ pipework eth0 <ID> 10.0.1.190/24
-
-Repeat the same on a second host but specify a different IP when calling
-pipework. Now you should have two haproxy running and ucarp making sure only
-one listens on 10.0.1.201.
+Now you should have two haproxy+nginx running and ucarp running on
+the given interface, making sure only one listens on 10.0.1.201.
 
 # Failure Scenarios
-If any service (haproxy or nginx) goes down, the container is supposed to kill UCARP so the IP gets removed and the backup can take over.
+If any service (haproxy or nginx) goes down, the container is supposed
+to kill UCARP so the IP gets removed and the backup can take over.
 
-If for any reasons this isn't working, kill the container manually. This should cause the backup to take over.
+If for any reasons this isn't working, kill the container manually.
+This should cause the backup to take over.
 
-If this is not the case, there is a problem with the backup container. You might want to restart it.
+If this is not the case, there is a problem with the backup container.
+You might want to restart it.
