@@ -17,12 +17,13 @@ image by using a Dockerfile like this:
 ## Setup
 Start a container like this on two hosts:
 
-    $ docker run -e DEV=eth1 --privileged --net host fish/haproxy-docker 10.0.1.201 foobar23
+    $ docker run -e DEV=eth1 --privileged --net host fish/haproxy-docker 10.0.1.201 foobar23 [additional IPs..]
 
 Now you should have two haproxy+nginx running and ucarp running on
-the given interface, making sure only one listens on 10.0.1.201.
+the given interface, making sure only one listens on 10.0.1.201
+(and optionally on additional IPs).
 
-# Failure Scenarios
+## Failure Scenarios
 If any service (haproxy or nginx) goes down, the container is supposed
 to kill UCARP so the IP gets removed and the backup can take over.
 

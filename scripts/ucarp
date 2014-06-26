@@ -1,25 +1,11 @@
 #!/bin/bash
 set -e
 
-if [ -n "$GW" ]
-then
-  OLDGW=`ip route |awk '/^default/ {print $3}'`
-  echo "Moving default route $OLDGW->$GW"
-  ip route del default
-  ip route add default via $GW
-
-  if [ -n "$NET" ]
-  then
-    echo "Add route $NET to old gateway $OLDGW"
-    ip route add $NET via $OLDGW
-  fi
-fi
-
 [ -z "$VHID" ] && VHID=`printf '%d' 0x$(echo $VIP | md5sum |cut -b1-2)`
 echo "Using id: $VHID"
 
 NET=`ip addr show dev $DEV|awk '/inet[^6]/ {print $2}'`
 RIP=`echo $NET|cut -d/ -f1`
 
-exec ucarp -i $DEV -s $RIP -v $VHID -p $PASS -a $VIP \
+exec ucarp -i "$DEV" -s "$RIP" -v "$VHID" -p "$PASS" -a "$VIP" -x "$IPS" \
            -u ./scripts/up -d ./scripts/down -z

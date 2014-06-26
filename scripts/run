@@ -26,8 +26,8 @@ shutdown() {
 
 export VIP=$1
 export PASS=$2
-export GW=$3
-export NET=$4
+shift; shift
+export IPS=$@
 export DEV=${DEV-eth1}
 
 if [ -z "$PASS" ]
